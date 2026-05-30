@@ -9,22 +9,16 @@
 
 (authors "Roland Laznik <dev@lznk.de>")
 
-(maintainers "Maintainer Name <maintainer@example.com>")
-
 (license MIT)
-
-(documentation https://url/to/documentation)
 
 (package
  (name bounded_integer)
- (synopsis "A short synopsis")
- (description "A longer description")
- (tags
-  ("add topics" "to describe" your project))
+ (version 0.1.0)
+ (synopsis "BoundedInteger module functor.")
+ (description "A functor-based library for creating type-safe bounded integer 
+ types with compile-time optimized range checking on all arithmetic operations.")
  (depends 
    (ocaml (>= 5.4.1))
    base
  )
 )
-
-; See the complete stanza docs at https://dune.readthedocs.io/en/stable/reference/dune-project/index.html
