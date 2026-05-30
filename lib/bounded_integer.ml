@@ -7,6 +7,9 @@ include Bounded_integer_types
 (** The functor implementation. 
     
     See the interface ({!module:Bounded_integer}) for documentation.
+    
+    Overflow/underflow checks are inlined in each operation to allow
+    the compiler to optimize them away when the bounds make overflow impossible.
 *)
 module BoundedInteger (P : BOUNDED_INTEGER_PARAMS) : BOUNDED_INTEGER_RESULT = struct
   open P.Type
@@ -15,46 +18,6 @@ module BoundedInteger (P : BOUNDED_INTEGER_PARAMS) : BOUNDED_INTEGER_RESULT = st
   let min_value = P.lower
   let max_value = P.upper
   let zero = P.Type.of_int 0
-
-  (** Check if the result of addition over/underflowed the underlying type
-      by detecting sign inconsistencies. *)
-  let check_add_no_overflow a b result =
-    let a_nonneg = P.Type.compare a zero >= 0 in
-    let b_nonneg = P.Type.compare b zero >= 0 in
-    let result_neg = P.Type.compare result zero < 0 in
-    (* If both operands are non-negative but result is negative, we overflowed *)
-    if a_nonneg && b_nonneg && result_neg then raise Out_of_bounds;
-    (* If both operands are negative but result is non-negative, we underflowed *)
-    if not a_nonneg && not b_nonneg && not result_neg then raise Out_of_bounds
-
-  (** Check if the result of subtraction over/underflowed the underlying type. *)
-  let check_sub_no_overflow a b result =
-    let a_nonneg = P.Type.compare a zero >= 0 in
-    let b_neg = P.Type.compare b zero < 0 in
-    let result_neg = P.Type.compare result zero < 0 in
-    (* If a >= 0 and b < 0, then a - b should be >= a >= 0 *)
-    if a_nonneg && b_neg && result_neg then raise Out_of_bounds;
-    (* If a < 0 and b >= 0, then a - b should be <= a < 0 *)
-    if not a_nonneg && not b_neg && not result_neg then raise Out_of_bounds
-
-  (** Check if the result of multiplication over/underflowed the underlying type
-      by verifying sign consistency. *)
-  let check_mul_no_overflow a b result =
-    let a_neg = P.Type.compare a zero < 0 in
-    let b_neg = P.Type.compare b zero < 0 in
-    let result_neg = P.Type.compare result zero < 0 in
-    (* XOR of operand signs should match result sign (unless result is 0) *)
-    let signs_match = (a_neg && b_neg && not result_neg) || 
-                      (a_neg && not b_neg && result_neg) ||
-                      (not a_neg && b_neg && result_neg) ||
-                      (not a_neg && not b_neg && not result_neg) in
-    if not signs_match && P.Type.compare result zero <> 0 then raise Out_of_bounds
-
-  (** Check if negation overflows. Negating min_value overflows in two's complement. *)
-  let check_neg_no_overflow a result =
-    (* Negation: if a is min_value, then -a would overflow in two's complement *)
-    if P.Type.compare a P.Type.min_value = 0 && P.Type.compare result zero <> 0 then
-      raise Out_of_bounds
 
   (** Check if a value is within the user-specified bounds [P.lower, P.upper]. *)
   let check_bounds x =
@@ -68,19 +31,42 @@ module BoundedInteger (P : BOUNDED_INTEGER_PARAMS) : BOUNDED_INTEGER_RESULT = st
 
   let add a b =
     let result = a + b in
-    check_add_no_overflow a b result;
+    (* Inlined overflow check for addition *)
+    let a_nonneg = P.Type.compare a zero >= 0 in
+    let b_nonneg = P.Type.compare b zero >= 0 in
+    let result_neg = P.Type.compare result zero < 0 in
+    (* If both operands are non-negative but result is negative, we overflowed *)
+    if a_nonneg && b_nonneg && result_neg then raise Out_of_bounds;
+    (* If both operands are negative but result is non-negative, we underflowed *)
+    if not a_nonneg && not b_nonneg && not result_neg then raise Out_of_bounds;
     check_bounds result;
     result
 
   let sub a b =
     let result = a - b in
-    check_sub_no_overflow a b result;
+    (* Inlined overflow check for subtraction *)
+    let a_nonneg = P.Type.compare a zero >= 0 in
+    let b_neg = P.Type.compare b zero < 0 in
+    let result_neg = P.Type.compare result zero < 0 in
+    (* If a >= 0 and b < 0, then a - b should be >= a >= 0 *)
+    if a_nonneg && b_neg && result_neg then raise Out_of_bounds;
+    (* If a < 0 and b >= 0, then a - b should be <= a < 0 *)
+    if not a_nonneg && not b_neg && not result_neg then raise Out_of_bounds;
     check_bounds result;
     result
 
   let mul a b =
     let result = a * b in
-    check_mul_no_overflow a b result;
+    (* Inlined overflow check for multiplication *)
+    let a_neg = P.Type.compare a zero < 0 in
+    let b_neg = P.Type.compare b zero < 0 in
+    let result_neg = P.Type.compare result zero < 0 in
+    (* XOR of operand signs should match result sign (unless result is 0) *)
+    let signs_match = (a_neg && b_neg && not result_neg) || 
+                      (a_neg && not b_neg && result_neg) ||
+                      (not a_neg && b_neg && result_neg) ||
+                      (not a_neg && not b_neg && not result_neg) in
+    if not signs_match && P.Type.compare result zero <> 0 then raise Out_of_bounds;
     check_bounds result;
     result
 
@@ -96,14 +82,19 @@ module BoundedInteger (P : BOUNDED_INTEGER_PARAMS) : BOUNDED_INTEGER_RESULT = st
 
   let neg a =
     let result = ~- a in
-    check_neg_no_overflow a result;
+    (* Inlined overflow check for negation *)
+    (* Negation: if a is min_value, then -a would overflow in two's complement *)
+    if P.Type.compare a P.Type.min_value = 0 && P.Type.compare result zero <> 0 then
+      raise Out_of_bounds;
     check_bounds result;
     result
 
   let abs a =
     if P.Type.compare a zero < 0 then begin
       let result = ~- a in
-      check_neg_no_overflow a result;
+      (* Inlined overflow check for negation in abs *)
+      if P.Type.compare a P.Type.min_value = 0 && P.Type.compare result zero <> 0 then
+        raise Out_of_bounds;
       check_bounds result;
       result
     end else begin
