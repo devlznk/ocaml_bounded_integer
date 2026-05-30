@@ -39,9 +39,43 @@ module BoundedInteger (P : sig
 
   let min_value = P.lower
   let max_value = P.upper
+  let zero = P.Type.of_int 0
 
-  let check_type_bounds x =
-    if P.Type.compare x P.Type.min_value < 0 || P.Type.compare x P.Type.max_value > 0 then
+  (* Check if the result of an operation over/underflowed the underlying type.
+     We detect wrapping by checking sign inconsistencies. *)
+  
+  let check_add_no_overflow a b result =
+    let a_nonneg = P.Type.compare a zero >= 0 in
+    let b_nonneg = P.Type.compare b zero >= 0 in
+    let result_neg = P.Type.compare result zero < 0 in
+    (* If both operands are non-negative but result is negative, we overflowed *)
+    if a_nonneg && b_nonneg && result_neg then raise Out_of_bounds;
+    (* If both operands are negative but result is non-negative, we underflowed *)
+    if not a_nonneg && not b_nonneg && not result_neg then raise Out_of_bounds
+
+  let check_sub_no_overflow a b result =
+    let a_nonneg = P.Type.compare a zero >= 0 in
+    let b_neg = P.Type.compare b zero < 0 in
+    let result_neg = P.Type.compare result zero < 0 in
+    (* If a >= 0 and b < 0, then a - b should be >= a >= 0 *)
+    if a_nonneg && b_neg && result_neg then raise Out_of_bounds;
+    (* If a < 0 and b >= 0, then a - b should be <= a < 0 *)
+    if not a_nonneg && not b_neg && not result_neg then raise Out_of_bounds
+
+  let check_mul_no_overflow a b result =
+    let a_neg = P.Type.compare a zero < 0 in
+    let b_neg = P.Type.compare b zero < 0 in
+    let result_neg = P.Type.compare result zero < 0 in
+    (* XOR of operand signs should match result sign (unless result is 0) *)
+    let signs_match = (a_neg && b_neg && not result_neg) || 
+                      (a_neg && not b_neg && result_neg) ||
+                      (not a_neg && b_neg && result_neg) ||
+                      (not a_neg && not b_neg && not result_neg) in
+    if not signs_match && P.Type.compare result zero <> 0 then raise Out_of_bounds
+
+  let check_neg_no_overflow a result =
+    (* Negation: if a is min_value, then -a would overflow in two's complement *)
+    if P.Type.compare a P.Type.min_value = 0 && P.Type.compare result zero <> 0 then
       raise Out_of_bounds
 
   let check_bounds x =
@@ -50,53 +84,53 @@ module BoundedInteger (P : sig
 
   let of_int n =
     let result = P.Type.of_int n in
-    check_type_bounds result;
     check_bounds result;
     result
 
-  let zero = P.Type.of_int 0
-
   let add a b =
     let result = a + b in
-    check_type_bounds result;
+    check_add_no_overflow a b result;
     check_bounds result;
     result
 
   let sub a b =
     let result = a - b in
-    check_type_bounds result;
+    check_sub_no_overflow a b result;
     check_bounds result;
     result
 
   let mul a b =
     let result = a * b in
-    check_type_bounds result;
+    check_mul_no_overflow a b result;
     check_bounds result;
     result
 
   let div a b =
     let result = a / b in
-    check_type_bounds result;
     check_bounds result;
     result
 
   let rem a b =
     let result = a - (a / b) * b in
-    check_type_bounds result;
     check_bounds result;
     result
 
   let neg a =
     let result = ~- a in
-    check_type_bounds result;
+    check_neg_no_overflow a result;
     check_bounds result;
     result
 
   let abs a =
-    let result = if P.Type.compare a zero < 0 then ~- a else a in
-    check_type_bounds result;
-    check_bounds result;
-    result
+    if P.Type.compare a zero < 0 then begin
+      let result = ~- a in
+      check_neg_no_overflow a result;
+      check_bounds result;
+      result
+    end else begin
+      check_bounds a;
+      a
+    end
 
   let ( + ) = add
   let ( - ) = sub

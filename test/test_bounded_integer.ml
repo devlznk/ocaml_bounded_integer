@@ -6,6 +6,13 @@ module Bounded5 = BoundedInteger (struct
     let upper = Base.Int.of_int 5
   end)
 
+(* Test with full range to test overflow detection *)
+module FullRange = BoundedInteger (struct
+    module Type = Base.Int
+    let lower = Base.Int.min_value
+    let upper = Base.Int.max_value
+  end)
+
 let test_of_int_within_bounds () =
   let x = Bounded5.of_int 3 in
   Bounded5.compare x (Bounded5.of_int 3) = 0
@@ -101,6 +108,40 @@ let test_min_value () =
 let test_max_value () =
   Bounded5.compare Bounded5.max_value (Bounded5.of_int 5) = 0
 
+(* Overflow detection tests with full range *)
+
+let test_overflow_add_max () =
+  (* With full range, max_value + 1 should wrap and be detected as overflow *)
+  try
+    let x = FullRange.of_int (Base.Int.to_int Base.Int.max_value) in
+    let _ = FullRange.add x (FullRange.of_int 1) in
+    false
+  with Out_of_bounds -> true
+
+let test_overflow_add_min () =
+  (* min_value + (-1) should underflow *)
+  try
+    let x = FullRange.of_int (Base.Int.to_int Base.Int.min_value) in
+    let _ = FullRange.add x (FullRange.of_int (-1)) in
+    false
+  with Out_of_bounds -> true
+
+let test_overflow_mul () =
+  (* max_value / 2 + 1 multiplied by 2 should overflow *)
+  try
+    let x = FullRange.of_int (Base.Int.to_int Base.Int.max_value / 2 + 1) in
+    let _ = FullRange.mul x (FullRange.of_int 2) in
+    false
+  with Out_of_bounds -> true
+
+let test_overflow_neg_min () =
+  (* negating min_value should overflow *)
+  try
+    let x = FullRange.of_int (Base.Int.to_int Base.Int.min_value) in
+    let _ = FullRange.neg x in
+    false
+  with Out_of_bounds -> true
+
 let () =
   let tests = [
     ("of_int within bounds", test_of_int_within_bounds);
@@ -121,6 +162,10 @@ let () =
     ("operator mul", test_operator_mul);
     ("min_value", test_min_value);
     ("max_value", test_max_value);
+    ("overflow add max", test_overflow_add_max);
+    ("overflow add min", test_overflow_add_min);
+    ("overflow mul", test_overflow_mul);
+    ("overflow neg min", test_overflow_neg_min);
   ] in
   Stdlib.List.iter (fun (name, test) ->
     if test () then
