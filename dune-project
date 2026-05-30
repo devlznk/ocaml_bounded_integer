@@ -5,7 +5,7 @@
 (generate_opam_files true)
 
 (source
- (github username/reponame))
+ (github devlznk/ocaml_bounded_integer))
 
 (authors "Roland Laznik <dev@lznk.de>")
 
@@ -13,7 +13,7 @@
 
 (package
  (name bounded_integer)
- (version 0.1.0)
+ (version 0.1.1)
  (synopsis "BoundedInteger module functor.")
  (description "A functor-based library for creating type-safe bounded integer 
  types with compile-time optimized range checking on all arithmetic operations.")
