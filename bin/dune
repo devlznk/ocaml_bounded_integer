@@ -1,0 +1,4 @@
+(executable
+ (public_name bounded_integer)
+ (name main)
+ (libraries bounded_integer))

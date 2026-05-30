@@ -1,0 +1,3 @@
+(library
+ (name bounded_integer)
+ (libraries base))
