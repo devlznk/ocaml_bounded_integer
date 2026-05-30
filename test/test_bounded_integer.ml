@@ -4,6 +4,8 @@ module Bounded5 = BoundedInteger (struct
     module Type = Base.Int
     let lower = Base.Int.of_int 0
     let upper = Base.Int.of_int 5
+    let bit_xor = Base.Int.bit_xor
+    let bit_and = Base.Int.bit_and
   end)
 
 (* Test with full range to test overflow detection *)
@@ -11,6 +13,8 @@ module FullRange = BoundedInteger (struct
     module Type = Base.Int
     let lower = Base.Int.min_value
     let upper = Base.Int.max_value
+    let bit_xor = Base.Int.bit_xor
+    let bit_and = Base.Int.bit_and
   end)
 
 let test_of_int_within_bounds () =

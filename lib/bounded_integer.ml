@@ -11,6 +11,9 @@ include Bounded_integer_types
     Overflow/underflow checks are conditionally included based on compile-time
     analysis of the bounds. If the bounds are sufficiently small that overflow
     is impossible, the checks are omitted.
+    
+    For addition, we use the efficient bitwise check [bit_and (bit_xor a result) (bit_xor b result) < 0]
+    which detects overflow in two's complement arithmetic with just 2 bitwise ops and 1 compare.
 *)
 module BoundedInteger (P : BOUNDED_INTEGER_PARAMS) : BOUNDED_INTEGER_RESULT = struct
   open P.Type
@@ -56,12 +59,12 @@ module BoundedInteger (P : BOUNDED_INTEGER_PARAMS) : BOUNDED_INTEGER_RESULT = st
   let add a b =
     let result = a + b in
     if check_add_overflow then begin
-      (* Inlined overflow check for addition *)
-      let a_nonneg = P.Type.compare a zero >= 0 in
-      let b_nonneg = P.Type.compare b zero >= 0 in
-      let result_neg = P.Type.compare result zero < 0 in
-      if a_nonneg && b_nonneg && result_neg then raise Out_of_bounds;
-      if not a_nonneg && not b_nonneg && not result_neg then raise Out_of_bounds
+      (* Efficient overflow check using bitwise operations.
+         For signed integers in two's complement: overflow occurs iff
+         bit_and (bit_xor a result) (bit_xor b result) has the sign bit set (i.e., < 0),
+         which detects when a and b have the same sign but result has a different sign. *)
+      if P.Type.bit_and (P.Type.bit_xor a result) (P.Type.bit_xor b result) < zero then
+        raise Out_of_bounds
     end;
     check_bounds result;
     result
@@ -69,7 +72,7 @@ module BoundedInteger (P : BOUNDED_INTEGER_PARAMS) : BOUNDED_INTEGER_RESULT = st
   let sub a b =
     let result = a - b in
     if check_sub_overflow then begin
-      (* Inlined overflow check for subtraction *)
+      (* Overflow check for subtraction *)
       let a_nonneg = P.Type.compare a zero >= 0 in
       let b_neg = P.Type.compare b zero < 0 in
       let result_neg = P.Type.compare result zero < 0 in
@@ -82,7 +85,7 @@ module BoundedInteger (P : BOUNDED_INTEGER_PARAMS) : BOUNDED_INTEGER_RESULT = st
   let mul a b =
     let result = a * b in
     if check_mul_overflow then begin
-      (* Inlined overflow check for multiplication *)
+      (* Overflow check for multiplication *)
       let a_neg = P.Type.compare a zero < 0 in
       let b_neg = P.Type.compare b zero < 0 in
       let result_neg = P.Type.compare result zero < 0 in

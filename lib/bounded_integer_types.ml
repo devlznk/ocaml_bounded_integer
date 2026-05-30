@@ -31,6 +31,12 @@ module type INT_TYPE = sig
   
   (** Convert from integer. *)
   val of_int : int -> t
+  
+  (** Bitwise XOR function. Required for efficient overflow detection. *)
+  val bit_xor : t -> t -> t
+  
+  (** Bitwise AND function. Required for efficient overflow detection. *)
+  val bit_and : t -> t -> t
 end
 
 (** Parameters for the [BoundedInteger] functor. *)
