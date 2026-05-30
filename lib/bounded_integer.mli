@@ -3,6 +3,8 @@ exception Out_of_bounds
 module BoundedInteger : functor (P : sig
     module Type : sig
       type t
+      val min_value : t
+      val max_value : t
       val ( + ) : t -> t -> t
       val ( - ) : t -> t -> t
       val ( * ) : t -> t -> t

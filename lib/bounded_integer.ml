@@ -3,6 +3,8 @@ exception Out_of_bounds
 module BoundedInteger (P : sig
     module Type : sig
       type t
+      val min_value : t
+      val max_value : t
       val ( + ) : t -> t -> t
       val ( - ) : t -> t -> t
       val ( * ) : t -> t -> t
@@ -38,48 +40,63 @@ module BoundedInteger (P : sig
   let min_value = P.lower
   let max_value = P.upper
 
-  let of_int n =
-    let result = P.Type.of_int n in
-    if P.Type.compare result P.lower < 0 || P.Type.compare result P.upper > 0 then
+  let check_type_bounds x =
+    if P.Type.compare x P.Type.min_value < 0 || P.Type.compare x P.Type.max_value > 0 then
       raise Out_of_bounds
-    else
-      result
 
   let check_bounds x =
     if P.Type.compare x P.lower < 0 || P.Type.compare x P.upper > 0 then
       raise Out_of_bounds
-    else
-      x
+
+  let of_int n =
+    let result = P.Type.of_int n in
+    check_type_bounds result;
+    check_bounds result;
+    result
 
   let zero = P.Type.of_int 0
 
   let add a b =
     let result = a + b in
-    check_bounds result
+    check_type_bounds result;
+    check_bounds result;
+    result
 
   let sub a b =
     let result = a - b in
-    check_bounds result
+    check_type_bounds result;
+    check_bounds result;
+    result
 
   let mul a b =
     let result = a * b in
-    check_bounds result
+    check_type_bounds result;
+    check_bounds result;
+    result
 
   let div a b =
     let result = a / b in
-    check_bounds result
+    check_type_bounds result;
+    check_bounds result;
+    result
 
   let rem a b =
     let result = a - (a / b) * b in
-    check_bounds result
+    check_type_bounds result;
+    check_bounds result;
+    result
 
   let neg a =
     let result = ~- a in
-    check_bounds result
+    check_type_bounds result;
+    check_bounds result;
+    result
 
   let abs a =
     let result = if P.Type.compare a zero < 0 then ~- a else a in
-    check_bounds result
+    check_type_bounds result;
+    check_bounds result;
+    result
 
   let ( + ) = add
   let ( - ) = sub
