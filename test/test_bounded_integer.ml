@@ -4,8 +4,6 @@ module Bounded5 = BoundedInteger (struct
     module Type = Base.Int
     let lower = Base.Int.of_int 0
     let upper = Base.Int.of_int 5
-    let bit_xor = Base.Int.bit_xor
-    let bit_and = Base.Int.bit_and
   end)
 
 (* Test with full range to test overflow detection *)
@@ -13,8 +11,20 @@ module FullRange = BoundedInteger (struct
     module Type = Base.Int
     let lower = Base.Int.min_value
     let upper = Base.Int.max_value
-    let bit_xor = Base.Int.bit_xor
-    let bit_and = Base.Int.bit_and
+  end)
+
+(* Test with negative range to test subtraction overflow *)
+module NegativeRange = BoundedInteger (struct
+    module Type = Base.Int
+    let lower = Base.Int.of_int (-5)
+    let upper = Base.Int.of_int (-1)
+  end)
+
+(* Test with small positive range for multiplication *)
+module SmallPosRange = BoundedInteger (struct
+    module Type = Base.Int
+    let lower = Base.Int.of_int 0
+    let upper = Base.Int.of_int 10
   end)
 
 let test_of_int_within_bounds () =
@@ -67,6 +77,21 @@ let test_sub_below_lower_bound_raises () =
     false
   with Out_of_bounds -> true
 
+let test_sub_negative_range () =
+  (* In NegativeRange [-5, -1], -5 - (-1) = -4 which is valid *)
+  let x = NegativeRange.of_int (-5) in
+  let y = NegativeRange.of_int (-1) in
+  NegativeRange.compare (NegativeRange.sub x y) (NegativeRange.of_int (-4)) = 0
+
+let test_sub_negative_range_overflow () =
+  (* In NegativeRange [-5, -1], -5 - (-5) = 0 which is outside [-5, -1] *)
+  try
+    let x = NegativeRange.of_int (-5) in
+    let y = NegativeRange.of_int (-5) in
+    let _ = NegativeRange.sub x y in
+    false
+  with Out_of_bounds -> true
+
 let test_mul_within_bounds () =
   let x = Bounded5.of_int 2 in
   let y = Bounded5.of_int 2 in
@@ -77,6 +102,15 @@ let test_mul_above_upper_bound_raises () =
     let x = Bounded5.of_int 2 in
     let y = Bounded5.of_int 3 in
     let _ = Bounded5.mul x y in
+    false
+  with Out_of_bounds -> true
+
+let test_mul_small_range () =
+  (* In SmallPosRange [0, 10], 10 * 10 = 100 which is > 10, should raise *)
+  try
+    let x = SmallPosRange.of_int 10 in
+    let y = SmallPosRange.of_int 10 in
+    let _ = SmallPosRange.mul x y in
     false
   with Out_of_bounds -> true
 
@@ -130,6 +164,15 @@ let test_overflow_add_min () =
     false
   with Out_of_bounds -> true
 
+let test_overflow_sub_max_min () =
+  (* max_value - min_value should wrap and be detected as overflow *)
+  try
+    let x = FullRange.of_int (Base.Int.to_int Base.Int.max_value) in
+    let y = FullRange.of_int (Base.Int.to_int Base.Int.min_value) in
+    let _ = FullRange.sub x y in
+    false
+  with Out_of_bounds -> true
+
 let test_overflow_mul () =
   (* max_value / 2 + 1 multiplied by 2 should overflow *)
   try
@@ -157,8 +200,11 @@ let () =
     ("add above upper bound raises", test_add_above_upper_bound_raises);
     ("sub within bounds", test_sub_within_bounds);
     ("sub below lower bound raises", test_sub_below_lower_bound_raises);
+    ("sub negative range", test_sub_negative_range);
+    ("sub negative range overflow", test_sub_negative_range_overflow);
     ("mul within bounds", test_mul_within_bounds);
     ("mul above upper bound raises", test_mul_above_upper_bound_raises);
+    ("mul small range overflow", test_mul_small_range);
     ("neg within bounds", test_neg_within_bounds);
     ("neg below lower bound raises", test_neg_below_lower_bound_raises);
     ("operator add", test_operator_add);
@@ -168,6 +214,7 @@ let () =
     ("max_value", test_max_value);
     ("overflow add max", test_overflow_add_max);
     ("overflow add min", test_overflow_add_min);
+    ("overflow sub max min", test_overflow_sub_max_min);
     ("overflow mul", test_overflow_mul);
     ("overflow neg min", test_overflow_neg_min);
   ] in
