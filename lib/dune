@@ -1,3 +1,4 @@
 (library
+ (public_name bounded_integer)
  (name bounded_integer)
  (libraries base))

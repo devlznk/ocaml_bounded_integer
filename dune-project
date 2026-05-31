@@ -13,11 +13,11 @@
 
 (package
  (name bounded_integer)
- (version 0.1.1)
+ (version 0.2.0)
  (synopsis "BoundedInteger module functor.")
- (description "A functor-based library for creating type-safe bounded integer 
+ (description "A functor-based library for creating type-safe bounded integer
  types with compile-time optimized range checking on all arithmetic operations.")
- (depends 
+ (depends
    (ocaml (>= 5.4.1))
    base
  )
