@@ -13,7 +13,7 @@
 
 (package
  (name bounded_integer)
- (version 0.2.1)
+ (version 0.2.2)
  (synopsis "BoundedInteger module functor.")
  (description "A functor-based library for creating type-safe bounded integer
  types with compile-time optimized range checking on all arithmetic operations.")
